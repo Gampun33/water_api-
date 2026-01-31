@@ -1,10 +1,20 @@
 require("dotenv").config(); 
+
+// 👇 เพิ่ม 3 บรรทัดนี้เพื่อเช็คค่า (แล้วค่อยลบออกทีหลังนะ)
+console.log("--- DEBUG ENV ---");
+console.log("DB_HOST:", process.env.DB_HOST ? "✅ มีค่า" : "❌ ไม่มีค่า");
+console.log("PORT:", process.env.PORT);
+console.log("-----------------");
+
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 
+const helmet = require("helmet");
+
 const app = express();
+app.use(helmet());
 app.use(cors());
 app.use(bodyParser.json());
 

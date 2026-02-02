@@ -37,16 +37,14 @@ db.getConnection((err, connection) => {
   if (err) {
     console.error("❌ Database Connection Failed:", err.message);
   } else {
-    console.log("✅ Connected to MySQL Database (Aiven)!");
+    console.log("✅ Connected to MySQL Database!");
     connection.release();
   }
 });
 
+// ฟังก์ชัน Log พื้นฐาน (เก็บไว้ดูว่าใครเรียก API ไหน แต่ไม่โชว์ข้อมูลลึก)
 const logRequest = (method, path, body) => {
-  console.log(
-    `[${new Date().toLocaleTimeString()}] ${method} ${path}`,
-    body ? JSON.stringify(body) : ""
-  );
+  console.log(`[${new Date().toLocaleTimeString()}] ${method} ${path}`);
 };
 
 // --- 2. API Routes ---
@@ -55,12 +53,9 @@ app.get("/", (req, res) => {
   res.send("<h1>HydroMonitor API Server is Running! 🚀</h1>");
 });
 
-// --- 🔵 2.1 Login API ---
+// --- 🔵 2.1 Login API (Clean Version) ---
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
-
-  // 🔍 DEBUG
-  console.log(`[LOGIN] User: ${username}`);
 
   const sql = "SELECT * FROM users WHERE username = ?";
   db.query(sql, [username], (err, results) => {
@@ -75,8 +70,8 @@ app.post("/api/login", (req, res) => {
 
     const user = results[0];
 
+    // ตรวจสอบรหัสผ่าน (แบบ Clean ไม่ Log รหัสผ่านออก console)
     if (user.password === password) {
-      console.log("✅ Login Success");
       res.json({
         id: user.id,
         username: user.username,
@@ -85,7 +80,6 @@ app.post("/api/login", (req, res) => {
         organization: user.organization,
       });
     } else {
-      console.log("❌ Login Failed: Wrong Password");
       res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
     }
   });
@@ -126,7 +120,7 @@ app.get("/api/reports", (req, res) => {
 });
 
 app.post("/api/reports", (req, res) => {
-  logRequest("POST", "/api/reports", req.body);
+  logRequest("POST", "/api/reports");
 
   const cleanData = {};
   Object.keys(req.body).forEach((key) => {
@@ -135,8 +129,17 @@ app.post("/api/reports", (req, res) => {
   });
 
   const {
-    stationName, tambon, amphoe, province, date,
-    waterLevel, capacity, inflow, outflow, createdBy, groupId,
+    stationName,
+    tambon,
+    amphoe,
+    province,
+    date,
+    waterLevel,
+    capacity,
+    inflow,
+    outflow,
+    createdBy,
+    groupId,
   } = cleanData;
   const current_volume = parseFloat(waterLevel) || 0;
 
@@ -147,9 +150,18 @@ app.post("/api/reports", (req, res) => {
   db.query(
     sql,
     [
-      stationName, tambon || "-", amphoe || "-", province || "ลำปาง", date,
-      waterLevel, capacity || 100, current_volume, inflow || 0, outflow || 0,
-      createdBy, groupId || "group-large",
+      stationName,
+      tambon || "-",
+      amphoe || "-",
+      province || "ลำปาง",
+      date,
+      waterLevel,
+      capacity || 100,
+      current_volume,
+      inflow || 0,
+      outflow || 0,
+      createdBy,
+      groupId || "group-large",
     ],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -160,9 +172,19 @@ app.post("/api/reports", (req, res) => {
 
 app.put("/api/reports/:id", (req, res) => {
   const { id } = req.params;
-  const { stationName, tambon, amphoe, province, waterLevel, inflow, outflow, status } = req.body;
-  
-  logRequest("PUT", `/api/reports/${id}`, req.body);
+  const {
+    stationName,
+    tambon,
+    amphoe,
+    province,
+    waterLevel,
+    inflow,
+    outflow,
+    status,
+  } = req.body;
+
+  logRequest("PUT", `/api/reports/${id}`);
+
   const current = parseFloat(waterLevel) || 0;
 
   const sql = `
@@ -173,7 +195,18 @@ app.put("/api/reports/:id", (req, res) => {
 
   db.query(
     sql,
-    [stationName, tambon || "-", amphoe || "-", province || "ลำปาง", waterLevel, current, inflow || 0, outflow || 0, status, id],
+    [
+      stationName,
+      tambon || "-",
+      amphoe || "-",
+      province || "ลำปาง",
+      waterLevel,
+      current,
+      inflow || 0,
+      outflow || 0,
+      status,
+      id,
+    ],
     (err, result) => {
       if (err) {
         console.error("❌ UPDATE Error:", err.message);
@@ -185,40 +218,57 @@ app.put("/api/reports/:id", (req, res) => {
 });
 
 app.delete("/api/reports/:id", (req, res) => {
-  db.query("DELETE FROM water_reports WHERE id = ?", [req.params.id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
+  logRequest("DELETE", `/api/reports/${req.params.id}`);
+  db.query(
+    "DELETE FROM water_reports WHERE id = ?",
+    [req.params.id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
 });
 
 // --- 🔵 2.3 User Management APIs ---
 app.get("/api/users", (req, res) => {
-  db.query("SELECT id, username, role, full_name, organization FROM users", (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
+  db.query(
+    "SELECT id, username, role, full_name, organization FROM users",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
 app.post("/api/users", (req, res) => {
   const { username, password, role, fullName, organization } = req.body;
-  const sql = "INSERT INTO users (username, password, role, full_name, organization) VALUES (?, ?, ?, ?, ?)";
-  db.query(sql, [username, password, role, fullName, organization], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, id: result.insertId });
-  });
+  const sql =
+    "INSERT INTO users (username, password, role, full_name, organization) VALUES (?, ?, ?, ?, ?)";
+  db.query(
+    sql,
+    [username, password, role, fullName, organization],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, id: result.insertId });
+    }
+  );
 });
 
 app.put("/api/users/:id", (req, res) => {
   const { id } = req.params;
   const { username, role, fullName, organization, password } = req.body;
   let sql, params;
+
   if (password) {
-    sql = "UPDATE users SET username=?, role=?, full_name=?, organization=?, password=? WHERE id=?";
+    sql =
+      "UPDATE users SET username=?, role=?, full_name=?, organization=?, password=? WHERE id=?";
     params = [username, role, fullName, organization, password, id];
   } else {
-    sql = "UPDATE users SET username=?, role=?, full_name=?, organization=? WHERE id=?";
+    sql =
+      "UPDATE users SET username=?, role=?, full_name=?, organization=? WHERE id=?";
     params = [username, role, fullName, organization, id];
   }
+
   db.query(sql, params, (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
@@ -233,14 +283,19 @@ app.delete("/api/users/:id", (req, res) => {
 });
 
 // --- 🔵 2.4 Rain Reports APIs ---
+
 app.get("/api/rain-reports", (req, res) => {
   logRequest("GET", "/api/rain-reports");
+
   const sql = `SELECT * FROM rain_reports ORDER BY date DESC, created_at DESC`;
+
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
+
     const formatted = results.map((row) => {
       const d = new Date(row.date);
       const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
       return {
         ...row,
         stationName: row.stationName,
@@ -255,23 +310,53 @@ app.get("/api/rain-reports", (req, res) => {
 });
 
 app.post("/api/rain-reports", (req, res) => {
-  logRequest("POST", "/api/rain-reports", req.body);
-  const { stationName, date, rainAmount, tambon, amphoe, province, groupId, createdBy } = req.body;
-  const sql = `INSERT INTO rain_reports (stationName, date, rainAmount, tambon, amphoe, province, groupId, status, createdBy) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`;
-  db.query(sql, [stationName, date, rainAmount || 0, tambon || "-", amphoe || "-", province || "ลำปาง", groupId || "group-medium", createdBy], (err, result) => {
-    if (err) {
-      console.error("❌ INSERT Rain Error:", err.message);
-      return res.status(500).json({ error: err.message });
+  logRequest("POST", "/api/rain-reports");
+
+  const {
+    stationName,
+    date,
+    rainAmount,
+    tambon,
+    amphoe,
+    province,
+    groupId,
+    createdBy
+  } = req.body;
+
+  const sql = `INSERT INTO rain_reports 
+    (stationName, date, rainAmount, tambon, amphoe, province, groupId, status, createdBy) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`;
+
+  db.query(
+    sql,
+    [
+      stationName,
+      date,
+      rainAmount || 0,
+      tambon || "-",
+      amphoe || "-",
+      province || "ลำปาง",
+      groupId || "group-medium",
+      createdBy
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("❌ INSERT Rain Error:", err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: result.insertId });
     }
-    res.json({ success: true, id: result.insertId });
-  });
+  );
 });
 
 app.put("/api/rain-reports/:id", (req, res) => {
   const { id } = req.params;
   const { rainAmount, status } = req.body;
-  logRequest("PUT", `/api/rain-reports/${id}`, req.body);
+
+  logRequest("PUT", `/api/rain-reports/${id}`);
+
   const sql = `UPDATE rain_reports SET rainAmount=?, status=? WHERE id=?`;
+
   db.query(sql, [rainAmount || 0, status, id], (err, result) => {
     if (err) {
       console.error("❌ UPDATE Rain Error:", err.message);
@@ -282,11 +367,100 @@ app.put("/api/rain-reports/:id", (req, res) => {
 });
 
 app.delete("/api/rain-reports/:id", (req, res) => {
+  logRequest("DELETE", `/api/rain-reports/${req.params.id}`);
   db.query("DELETE FROM rain_reports WHERE id = ?", [req.params.id], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
   });
 });
+
+
+// --- 🏭 ส่วนจัดการข้อมูลเขื่อน (Dam Reports) ---
+
+app.post('/api/dam-reports', (req, res) => {
+    logRequest("POST", "/api/dam-reports");
+    const { 
+        stationName, date, 
+        currentStorage, usableStorage, capacity, 
+        createdBy 
+    } = req.body;
+    
+    const sql = `
+        INSERT INTO dam_reports 
+        (station_name, date, current_storage, usable_storage, capacity, created_by) 
+        VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.query(sql, [
+        stationName, date, 
+        currentStorage, usableStorage, capacity, 
+        createdBy
+    ], (err, result) => {
+        if (err) {
+            console.error("Error inserting dam report:", err);
+            return res.status(500).json(err);
+        }
+        res.json({ success: true, id: result.insertId });
+    });
+});
+
+app.get('/api/dam-reports', (req, res) => {
+    logRequest("GET", "/api/dam-reports");
+    const sql = `
+        SELECT 
+            id, 
+            station_name AS stationName, 
+            date, 
+            current_storage AS currentStorage, 
+            usable_storage AS usableStorage, 
+            capacity, 
+            created_by AS createdBy, 
+            status, 
+            created_at 
+        FROM dam_reports 
+        ORDER BY date DESC, id DESC
+    `;
+
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+
+app.put('/api/dam-reports/:id', (req, res) => {
+    const { id } = req.params;
+    const { currentStorage, usableStorage, capacity, status } = req.body;
+
+    logRequest("PUT", `/api/dam-reports/${id}`);
+
+    const sql = `
+        UPDATE dam_reports 
+        SET current_storage=?, usable_storage=?, capacity=?, status=? 
+        WHERE id=?
+    `;
+
+    db.query(sql, [currentStorage, usableStorage, capacity, status, id], (err, result) => {
+        if (err) {
+            console.error("Error updating dam report:", err);
+            return res.status(500).json(err);
+        }
+        res.json({ success: true });
+    });
+});
+
+app.delete('/api/dam-reports/:id', (req, res) => {
+    const { id } = req.params;
+    logRequest("DELETE", `/api/dam-reports/${id}`);
+
+    db.query('DELETE FROM dam_reports WHERE id = ?', [id], (err, result) => {
+        if (err) {
+            console.error("Error deleting dam report:", err);
+            return res.status(500).json(err);
+        }
+        res.json({ success: true });
+    });
+});
+
 
 // --- 3. Start Server (แก้ไขสำหรับ Render) ---
 // 🟢 จุดที่ 2: ใช้ process.env.PORT ถ้าไม่มีค่อยใช้ 3001

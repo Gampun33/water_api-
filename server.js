@@ -8,13 +8,22 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// --- 1. ตั้งค่าเชื่อมต่อ MySQL ---
+// --- 1. ตั้งค่าเชื่อมต่อ MySQL (แก้ไขสำหรับ Aiven) ---
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
+  port: process.env.DB_PORT || 3306, // เผื่อไว้
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  // 🟢 จุดที่ 1: ต้องเพิ่มตรงนี้ ไม่งั้น Aiven ไม่ยอมให้เข้า!
+  ssl: {
+      rejectUnauthorized: false
+  }
 });
+
 
 db.getConnection((err, connection) => {
   if (err) {

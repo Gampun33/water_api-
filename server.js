@@ -1,36 +1,19 @@
-require("dotenv").config(); 
-// 👇 เพิ่ม 3 บรรทัดนี้เพื่อเช็คค่า (แล้วค่อยลบออกทีหลังนะ)
-console.log("--- DEBUG ENV ---");
-console.log("DB_HOST:", process.env.DB_HOST ? "✅ มีค่า" : "❌ ไม่มีค่า");
-console.log("PORT:", process.env.PORT);
-console.log("-----------------");
-
+require("dotenv").config();
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 
-const helmet = require("helmet");
-
 const app = express();
-app.use(helmet());
 app.use(cors());
 app.use(bodyParser.json());
 
-// --- 1. ตั้งค่าเชื่อมต่อ MySQL (แก้ไขสำหรับ Aiven) ---
+// --- 1. ตั้งค่าเชื่อมต่อ MySQL ---
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  port: process.env.DB_PORT || 3306, // เผื่อไว้
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  // 🟢 จุดที่ 1: ต้องเพิ่มตรงนี้ ไม่งั้น Aiven ไม่ยอมให้เข้า!
-  ssl: {
-      rejectUnauthorized: false
-  }
 });
 
 db.getConnection((err, connection) => {
@@ -461,10 +444,8 @@ app.delete('/api/dam-reports/:id', (req, res) => {
     });
 });
 
-
-// --- 3. Start Server (แก้ไขสำหรับ Render) ---
-// 🟢 จุดที่ 2: ใช้ process.env.PORT ถ้าไม่มีค่อยใช้ 3001
-const PORT = process.env.PORT || 3001; 
+// --- 3. Start Server ---
+const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`✅ HydroMonitor Backend Running on port ${PORT}`);
 });

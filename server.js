@@ -445,7 +445,7 @@ app.delete('/api/dam-reports/:id', (req, res) => {
 });
 
 // --- 3. Start Server ---
-const PORT = 28115;
+const PORT = process.env.PORT || 3001; 
 app.listen(PORT, () => {
   console.log(`✅ HydroMonitor Backend Running on port ${PORT}`);
 });
